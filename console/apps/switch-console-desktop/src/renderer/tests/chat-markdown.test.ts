@@ -79,6 +79,36 @@ describe('ChatMarkdown', () => {
       expect(html).toContain('data-slot="code-block"');
     });
 
+    it('keeps math-labelled and look-alike fences as code beside real $ math', () => {
+      const labels = [
+        'math',
+        'switch-math',
+        'switch-math-inline',
+        'switch-math-display',
+        'math-literal',
+        'math-inline',
+        'math-display',
+      ];
+      const fences = labels.map((label) => '```' + label + '\nx^2\n```').join('\n\n');
+      const html = render(`inline $a+b$ then\n\n${fences}\n\n$$\nc=d\n$$`);
+      // Only the two real formulas become KaTeX.
+      expect(tex(html)).toEqual(['a+b', 'c=d']);
+      expect(html).toContain('katex-display');
+      expect(html.match(/data-slot="code-block"/g)).toHaveLength(labels.length);
+      for (const label of labels) expect(html).toContain(`>${label}</span>`);
+    });
+
+    it('keeps a math fence with meta text as code', () => {
+      const html = render('```math title="t"\nx^2\n```\n\n$y$');
+      expect(tex(html)).toEqual(['y']);
+      expect(html).toContain('data-slot="code-block"');
+    });
+
+    it('does not let raw HTML claim to be math', () => {
+      const html = render('<code class="language-math math-inline">x^2</code> and $y$');
+      expect(tex(html)).toEqual(['y']);
+    });
+
     it('does not read backslash delimiters or bare parentheses as math (baseline)', () => {
       const html = render('(\\tfrac{1}{2}) and \\(x\\)');
       expect(html).not.toContain('katex');
