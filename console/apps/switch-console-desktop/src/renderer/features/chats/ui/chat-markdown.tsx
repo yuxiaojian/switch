@@ -1,4 +1,6 @@
 import type * as React from 'react';
+import rehypeKatex from 'rehype-katex';
+import remarkMath from 'remark-math';
 import {
   defaultComponents,
   defaultRehypePlugins,
@@ -6,6 +8,8 @@ import {
   Streamdown,
   type Components,
   type ExtraProps,
+  type MathPlugin,
+  type PluginConfig,
   type UrlTransform,
 } from 'streamdown';
 import type { PluggableList } from 'unified';
@@ -29,6 +33,25 @@ const REHYPE_PLUGINS: PluggableList = [
   withConsoleLinks(defaultRehypePlugins.sanitize),
   defaultRehypePlugins.harden,
 ];
+
+/**
+ * Math for chat: `$…$` inline and `$$…$$` display, built from the remark-math /
+ * rehype-katex pair the session transcript already uses (KaTeX CSS is imported
+ * globally). Streamdown runs the math rehype plugin after sanitize/harden, so
+ * KaTeX's output is not sanitized: keep KaTeX's default `trust: false`, which
+ * rejects `\href{javascript:…}` and similar. Backslash delimiters (`\(…\)`)
+ * are not handled here. A literal dollar amount must be escaped (`\$5`), since
+ * "$5 and $10" is read as math. Module-level so Streamdown's memo sees stable
+ * plugin identities.
+ */
+const CHAT_MATH: MathPlugin = {
+  name: 'katex',
+  type: 'math',
+  remarkPlugin: [remarkMath, { singleDollarTextMath: true }],
+  rehypePlugin: rehypeKatex,
+};
+
+const PLUGINS: PluginConfig = { math: CHAT_MATH };
 
 type SanitizeSchema = { protocols?: Record<string, string[]> };
 
@@ -189,6 +212,7 @@ export function ChatMarkdown({ children, className }: { children: string; classN
       className={cn('min-w-0 text-sm text-foreground', className)}
       components={COMPONENTS}
       rehypePlugins={REHYPE_PLUGINS}
+      plugins={PLUGINS}
       urlTransform={urlTransform}
       skipHtml
       controls={false}
